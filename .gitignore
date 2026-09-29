@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
+
+# Local only: rejected Stage 3 textures and agent instruction files
+public/textures/stage3/
+AGENTS.md
+CLAUDE.md

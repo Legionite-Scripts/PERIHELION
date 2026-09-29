@@ -1,0 +1,766 @@
+/* ==========================================================================
+   PERIHELION
+   The page itself is almost nothing: a black ground, one fixed canvas, a very
+   tall spacer that provides the scroll runway, and a few lines of type.
+   ========================================================================== */
+
+:root {
+  /* Colour — two lights and black, taken from the physics, not a moodboard. */
+  --ground: #000000;
+  --light: #e8eaef;  /* never pure white */
+  --warm: #c08a5e;   /* direct light from the star */
+  --cool: #6e8ba8;   /* Rayleigh-scattered atmosphere */
+
+  /* Text on black. Labels stay >= 0.62: at 11px anything dimmer falls below
+     4.5:1 against the ground. */
+  --ink-title: rgba(232, 234, 239, 0.94);
+  --ink-line: rgba(232, 234, 239, 0.86);
+  --ink-label: rgba(232, 234, 239, 0.62);
+
+  /* Type. Families come from next/font (app/layout.tsx). */
+  --font-display: var(--font-serif), "Times New Roman", serif;
+  --font-text: var(--font-sans), system-ui, sans-serif;
+  --type-title: clamp(3.5rem, 11vw, 12rem);
+  --type-line: clamp(1rem, 1.5vw, 1.35rem);
+  --type-label: 11px;
+  --track-title: 0.01em;
+  --track-line: 0.005em;
+  --track-label: 0.16em;
+
+  /* Space. Every piece of type hangs from one left margin. */
+  --margin: clamp(56px, 7vw, 120px);
+  --margin-bottom: clamp(48px, 11vh, 132px);
+
+  /* Motion. Only the opening runs on a clock; everything else follows t. */
+  --veil-fade: 1.6s;
+  --title-rise: 1.4s;
+  --title-delay: 0.5s;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--ground);
+  color: var(--light);
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+/* No scrollbar: the viewport is a window, not a document. The page scrolls on
+   the root element, so that is where it has to be hidden. */
+html {
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* --------------------------------------------------------------------------
+   Stage
+   -------------------------------------------------------------------------- */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+.stage canvas {
+  display: block;
+  /* The canvas is the only image on the page; never let it be dragged. */
+  touch-action: none;
+}
+
+/* --------------------------------------------------------------------------
+   Grade — vignette (the film grain is drawn in the frame: FilmGrain.tsx)
+   -------------------------------------------------------------------------- */
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    /* tight corner falloff */
+    radial-gradient(
+      130% 105% at 50% 50%,
+      transparent 42%,
+      rgba(0, 0, 0, 0.40) 78%,
+      rgba(0, 0, 0, 0.80) 100%
+    ),
+    /* broad, very soft centre weighting */
+    radial-gradient(
+      90% 70% at 50% 46%,
+      rgba(255, 255, 255, 0.012) 0%,
+      transparent 60%
+    );
+}
+
+
+/* --------------------------------------------------------------------------
+   Opening — the veil and the title block
+   -------------------------------------------------------------------------- */
+
+/* Black until the first frame has rendered, then a slow fade up. It also
+   hides the one-time surface bakes, which stall the main thread at load. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: var(--ground);
+  pointer-events: none;
+  transition: opacity var(--veil-fade) var(--ease-out);
+}
+html[data-ready] .veil {
+  opacity: 0;
+}
+/* "Begin again": back to black, cut in the dark, fade up on the opening. */
+html[data-ready][data-restarting] .veil {
+  opacity: 1;
+  transition-duration: 0.9s;
+}
+
+/* Outer element: the one-time entrance, on the clock. */
+.opening {
+  position: fixed;
+  left: var(--margin);
+  right: var(--margin);
+  bottom: var(--margin-bottom);
+  /* Same layer as the vignette but later in the DOM, so above it — and under
+     the grain, which should sit over the type exactly as it sits over the
+     image. */
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0, 10px, 0);
+  transition:
+    opacity var(--title-rise) var(--ease-out) var(--title-delay),
+    transform var(--title-rise) var(--ease-out) var(--title-delay);
+}
+html[data-ready] .opening {
+  opacity: 1;
+  transform: none;
+}
+
+/* Inner element: driven by journey t from the render loop (UiDriver). */
+.opening__block {
+  transform-origin: 0 100%;
+  will-change: opacity, transform;
+}
+
+.opening__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--type-title);
+  line-height: 0.86;
+  letter-spacing: var(--track-title);
+  color: var(--ink-title);
+}
+
+.opening__line {
+  margin: 0.9em 0 0;
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: var(--type-line);
+  line-height: 1.4;
+  letter-spacing: var(--track-line);
+  color: var(--ink-line);
+}
+
+.opening__label {
+  margin: 1.35em 0 0;
+  font-family: var(--font-text);
+  font-weight: 500;
+  font-size: var(--type-label);
+  line-height: 1.4;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --veil-fade: 0.5s;
+    --title-rise: 0.5s;
+    --title-delay: 0s;
+  }
+  .opening {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Narrative — one beat at a time, placed where the frame leaves room
+   -------------------------------------------------------------------------- */
+
+.narrative {
+  position: fixed;
+  inset: 0;
+  z-index: 2; /* with the title: above the vignette, under the grain */
+  pointer-events: none;
+}
+
+/* Every beat starts invisible; UiDriver owns opacity and transform from then
+   on. Fully transparent text is still in the document and still read aloud. */
+.beat {
+  position: absolute;
+  /* The measure is set in the line's own face and size, so 30ch is ~30
+     characters of the narrative, not of the page's default font. */
+  font-family: var(--font-text);
+  font-size: var(--type-line);
+  max-width: 30ch;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.beat__line {
+  margin: 0;
+  /* A soft dark halo: invisible over black, and keeps the line legible where
+     the final act's nebula glows behind it. */
+  text-shadow: 0 0 14px rgba(0, 0, 0, 0.7), 0 0 3px rgba(0, 0, 0, 0.55);
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: 1em;
+  line-height: 1.45;
+  letter-spacing: var(--track-line);
+  color: var(--ink-line);
+  text-wrap: balance;
+  white-space: pre-line;
+}
+
+.beat__label {
+  margin: 0 0 0.9rem;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+  /* Labels break at a phrase, not wherever the measure runs out. */
+  text-wrap: balance;
+  font-family: var(--font-text);
+  font-weight: 500;
+  font-size: var(--type-label);
+  line-height: 1.4;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+
+.beat--lower-left {
+  left: var(--margin);
+  bottom: var(--margin-bottom);
+}
+.beat--right {
+  left: 62%;
+  bottom: var(--margin-bottom);
+}
+.beat--mid-left {
+  left: var(--margin);
+  top: 50%;
+  translate: 0 -50%;
+}
+.beat--top-left {
+  left: var(--margin);
+  top: var(--margin-bottom);
+}
+.beat--top-right {
+  right: var(--margin);
+  top: var(--margin-bottom);
+  text-align: right;
+}
+.beat--lower-right {
+  right: var(--margin);
+  bottom: var(--margin-bottom);
+  text-align: right;
+}
+.beat--upper-left {
+  left: var(--margin);
+  top: var(--margin-bottom);
+}
+.beat--centre {
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  max-width: 34ch;
+  text-align: center;
+}
+
+/* The one beat set inside the 3D scene (scene/type/SceneLine.tsx). Its DOM
+   copy stays for screen readers and search, visually removed. */
+.beat--in-scene {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Interface — the journey hairline, the cue, the wordmark, begin again
+   -------------------------------------------------------------------------- */
+
+/* Shared: every control is text or a hairline. Focus is a thin light ring,
+   always visible to the keyboard, never to the mouse. */
+.journey__tick:focus-visible,
+.restart:focus-visible,
+.opening__title:focus-visible {
+  outline: 1px solid var(--ink-line);
+  outline-offset: 4px;
+}
+.opening__title:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Journey — a vertical hairline on the left edge. */
+.journey {
+  position: fixed;
+  z-index: 5;
+  left: 28px;
+  top: 22vh;
+  bottom: 22vh;
+  width: 1px;
+  pointer-events: none;
+}
+.journey__track {
+  position: absolute;
+  inset: 0;
+  background: rgba(232, 234, 239, 0.12);
+  overflow: visible;
+}
+/* As long as the track; translated by t of its own length (UiDriver sets
+   --t), so its leading edge is the position mark. Compositor-only. */
+.journey__slider {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(0, calc(var(--t, 0) * 100%), 0);
+  will-change: transform;
+}
+.journey__mark {
+  position: absolute;
+  top: -0.5px;
+  left: -6px;
+  width: 13px;
+  height: 1px;
+  background: rgba(232, 234, 239, 0.82);
+}
+.journey__mark--warm {
+  background: var(--warm);
+  opacity: 0;
+}
+.journey__list {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.journey__item {
+  position: absolute;
+  left: 0;
+  top: calc(var(--at) * 100%);
+}
+/* A generous hit area around a 7px tick. */
+.journey__tick {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.journey__tick::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 13.5px;
+  width: 8px;
+  height: 1px;
+  background: rgba(232, 234, 239, 0.3);
+  transition: background 0.3s var(--ease-out);
+}
+.journey__tick[aria-current="step"]::before {
+  background: rgba(232, 234, 239, 0.55);
+}
+.journey__numeral {
+  position: absolute;
+  left: 32px;
+  top: 50%;
+  transform: translate3d(-4px, -50%, 0);
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--ink-line);
+  opacity: 0;
+  transition:
+    opacity 0.35s var(--ease-out),
+    transform 0.35s var(--ease-out);
+  white-space: nowrap;
+}
+.journey__tick:hover .journey__numeral,
+.journey__tick:focus-visible .journey__numeral {
+  opacity: 1;
+  transform: translate3d(0, -50%, 0);
+}
+.journey__tick:hover::before,
+.journey__tick:focus-visible::before {
+  background: rgba(232, 234, 239, 0.85);
+}
+
+/* Opening cue — lower right, arrives with the title, leaves with the first
+   scroll (UiDriver drives the inner element). */
+.cue-entrance {
+  position: fixed;
+  z-index: 2;
+  right: var(--margin);
+  bottom: var(--margin-bottom);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--title-rise) var(--ease-out) calc(var(--title-delay) + 0.6s);
+}
+html[data-ready] .cue-entrance {
+  opacity: 1;
+}
+.cue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+  margin: 0;
+  font-family: var(--font-text);
+  font-weight: 500;
+  font-size: var(--type-label);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+.cue__line {
+  display: block;
+  width: 1px;
+  height: 44px;
+  background: linear-gradient(rgba(232, 234, 239, 0.5), rgba(232, 234, 239, 0));
+}
+
+/* Wordmark — top left, once the title has gone. */
+.wordmark {
+  position: fixed;
+  z-index: 2;
+  left: var(--margin);
+  top: clamp(22px, 4.4vh, 44px);
+  margin: 0;
+  font-family: var(--font-text);
+  font-weight: 500;
+  font-size: var(--type-label);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-label);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Sound — top right, mirroring the wordmark. Arrives with the interface, so
+   the opening title keeps the frame to itself at first. */
+.sound-entrance {
+  position: fixed;
+  z-index: 5;
+  right: var(--margin);
+  top: clamp(14px, 4.4vh - 8px, 36px);
+  opacity: 0;
+  transition: opacity var(--title-rise) var(--ease-out) calc(var(--title-delay) + 1s);
+}
+html[data-ready] .sound-entrance {
+  opacity: 1;
+}
+.sound {
+  display: flex;
+  gap: 0.7em;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-text);
+  font-weight: 500;
+  font-size: var(--type-label);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-label);
+  cursor: pointer;
+}
+.sound__state {
+  min-width: 2.2em;
+  text-align: left;
+  color: var(--ink-label);
+  transition: color 0.3s var(--ease-out);
+}
+.sound[aria-pressed="true"] .sound__state {
+  color: var(--ink-line);
+}
+.sound:hover .sound__word {
+  color: var(--ink-line);
+}
+.sound:focus-visible {
+  outline: 1px solid var(--ink-line);
+  outline-offset: 4px;
+}
+
+/* Begin again — under the last line. */
+.restart-slot {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  top: calc(50% + 4.2rem);
+  translate: -50% 0;
+  pointer-events: none;
+}
+.restart {
+  padding: 6px 2px 5px;
+  border: 0;
+  border-bottom: 1px solid rgba(232, 234, 239, 0.28);
+  background: none;
+  font-family: var(--font-text);
+  font-weight: 500;
+  font-size: var(--type-label);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-line);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transition: border-color 0.3s var(--ease-out);
+}
+.restart:hover {
+  border-color: rgba(232, 234, 239, 0.7);
+}
+
+/* --------------------------------------------------------------------------
+   Portrait — one bottom-aligned column, the hairline along the bottom
+   -------------------------------------------------------------------------- */
+
+@media (max-aspect-ratio: 1/1) {
+  :root {
+    --margin: clamp(24px, 6.5vw, 64px);
+    /* Space kept clear at the foot of the screen for the hairline. */
+    --foot: 44px;
+    --type-line: clamp(1.02rem, 2.3vw, 1.35rem);
+  }
+
+  .opening {
+    bottom: calc(var(--margin-bottom) + var(--foot));
+  }
+
+  /* Every beat in the same place: one column at the bottom, reading left to
+     right, clear of the hairline. Only the ending stays centred. */
+  .beat {
+    left: var(--margin);
+    right: var(--margin);
+    top: auto;
+    bottom: calc(var(--margin-bottom) + var(--foot));
+    translate: none;
+    max-width: 32ch;
+    text-align: left;
+  }
+  .beat--centre {
+    left: var(--margin);
+    right: var(--margin);
+    max-width: none;
+    bottom: calc(var(--margin-bottom) + var(--foot) + 3.2rem);
+    text-align: center;
+  }
+  .restart-slot {
+    top: auto;
+    bottom: calc(var(--margin-bottom) + var(--foot));
+  }
+
+  .journey {
+    left: var(--margin);
+    right: var(--margin);
+    top: auto;
+    bottom: 22px;
+    width: auto;
+    height: 1px;
+  }
+  .journey__slider {
+    transform: translate3d(calc(var(--t, 0) * 100%), 0, 0);
+  }
+  .journey__mark {
+    top: -6px;
+    left: -0.5px;
+    width: 1px;
+    height: 13px;
+  }
+  .journey__item {
+    top: 0;
+    left: calc(var(--at) * 100%);
+  }
+  .journey__tick::before {
+    left: 13.5px;
+    top: 10px;
+    width: 1px;
+    height: 8px;
+  }
+  .journey__numeral {
+    left: 50%;
+    top: -14px;
+    transform: translate3d(-50%, 4px, 0);
+  }
+  .journey__tick:hover .journey__numeral,
+  .journey__tick:focus-visible .journey__numeral {
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  /* The cue sits just above the hairline, reading across rather than down. */
+  .cue-entrance {
+    bottom: calc(var(--foot) - 4px);
+  }
+  .cue {
+    flex-direction: row;
+    align-items: center;
+  }
+  .cue__line {
+    width: 28px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(232, 234, 239, 0.5), rgba(232, 234, 239, 0));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journey__numeral,
+  .journey__tick::before,
+  .restart {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Developer scrub — not part of the site
+   -------------------------------------------------------------------------- */
+
+.dev {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 48px));
+  padding: 10px 14px 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(232, 234, 239, 0.62);
+  background: rgba(8, 9, 12, 0.5);
+  border: 1px solid rgba(232, 234, 239, 0.08);
+  border-radius: 2px;
+  backdrop-filter: blur(6px);
+  user-select: none;
+}
+
+.dev--hint {
+  left: auto;
+  right: 18px;
+  bottom: 16px;
+  transform: none;
+  width: auto;
+  padding: 4px 7px;
+  background: none;
+  border-color: rgba(232, 234, 239, 0.12);
+  color: rgba(232, 234, 239, 0.28);
+}
+
+.dev__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.dev__key {
+  color: rgba(232, 234, 239, 0.3);
+  text-transform: uppercase;
+}
+.dev__val {
+  min-width: 44px;
+  margin-right: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(232, 234, 239, 0.8);
+}
+.dev__btn {
+  margin-left: auto;
+  padding: 3px 9px;
+  font: inherit;
+  letter-spacing: 0.08em;
+  color: inherit;
+  background: none;
+  border: 1px solid rgba(232, 234, 239, 0.14);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.dev__btn.is-on {
+  color: #0a0b0e;
+  background: rgba(232, 234, 239, 0.7);
+}
+
+.dev__slider {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 12px;
+  margin: 0;
+  background: none;
+  cursor: ew-resize;
+}
+.dev__slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: rgba(232, 234, 239, 0.16);
+}
+.dev__slider::-moz-range-track {
+  height: 1px;
+  background: rgba(232, 234, 239, 0.16);
+}
+.dev__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--light);
+  border: 0;
+  border-radius: 0;
+}
+.dev__slider::-moz-range-thumb {
+  width: 2px;
+  height: 12px;
+  background: var(--light);
+  border: 0;
+  border-radius: 0;
+}
+
+.dev__ticks {
+  position: relative;
+  height: 12px;
+  margin-top: 2px;
+}
+.dev__ticks span {
+  position: absolute;
+  top: 0;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: rgba(232, 234, 239, 0.26);
+  transform: translateX(-1px);
+}
