@@ -80,11 +80,13 @@ html.lenis body {
   position: fixed;
   inset: 0;
   z-index: 0;
+  /* Nothing in the scene takes input. Letting touches fall through to the
+     page is what makes it scroll on phones and tablets; a canvas that caught
+     them (touch-action: none) would swallow every swipe. */
+  pointer-events: none;
 }
 .stage canvas {
   display: block;
-  /* The canvas is the only image on the page; never let it be dragged. */
-  touch-action: none;
 }
 
 /* --------------------------------------------------------------------------

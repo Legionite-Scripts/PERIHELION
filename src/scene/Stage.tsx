@@ -43,6 +43,10 @@ export function Stage() {
   return (
     <div className="stage">
       <Canvas
+        // R3F sets pointer-events: auto on its wrapper by default. The scene
+        // takes no input, and a canvas that catches touches stops phones and
+        // tablets from scrolling the page.
+        style={{ pointerEvents: "none" }}
         dpr={[1, 1.75]}
         gl={{
           antialias: true,
