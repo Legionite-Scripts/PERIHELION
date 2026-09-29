@@ -9,7 +9,7 @@ import {
   NoColorSpace,
   OrthographicCamera,
   PlaneGeometry,
-  RedFormat,
+  RGBAFormat,
   RepeatWrapping,
   ClampToEdgeWrapping,
   Scene,
@@ -26,12 +26,11 @@ import { LENS_GLSL, lensUniforms } from "@/scene/gravity/lens";
 /**
  * The unresolved galaxy: a faint milky band with dust lanes cutting through it.
  *
- * This is the only "atmosphere" in Stage 1 and it is deliberately near the
- * threshold of visibility — peak brightness around 4% of white. Its job is not
- * to be looked at. Its job is to stop the black from reading as an empty
- * framebuffer, and to give the frame a large-scale tonal gradient so
- * composition is possible at all. Turn it off and the sky immediately looks
- * cheap; turn it up 3× and it becomes a nebula, which is Stage 7's problem.
+ * It stops the black from reading as an empty framebuffer and gives the frame
+ * a large-scale gradient to compose against. It is coloured, but only just: a
+ * gold core of old stars, blue edges, and rose and teal smudges where distant
+ * nebulae sit along the plane. Push it much further and it competes with the
+ * real nebula at the end of the flight.
  *
  * Rendered on a camera-locked inverted sphere: it is background at infinity and
  * must never parallax.
@@ -52,7 +51,7 @@ const RADIUS = 4600;
 const BAND_TILT = 0.42;
 const BAND_YAW = 0.9;
 
-/** Resolution of the baked band: 0.18° per texel, several screen pixels. */
+/** Resolution of the baked band (RGBA half float): 0.18° per texel, several screen pixels. */
 const MAP_W = 2048;
 const MAP_H = 1024;
 
@@ -110,7 +109,24 @@ const BAKE_FRAG = /* glsl */ `
     float phi = (vUv.x - 0.5) * 2.0 * PI;
     float beta = (vUv.y - 0.5) * PI;
     vec3 d = cos(beta) * (cos(phi) * uU + sin(phi) * uV) + sin(beta) * uNormal;
-    gl_FragColor = vec4(bandAmount(d), 0.0, 0.0, 1.0);
+    vec2 ring = vec2(cos(phi), sin(phi));
+    float amount = bandAmount(d);
+
+    // Colour. Old stars crowd the core and burn gold; the thin edges and the
+    // sky beyond are young and blue. The warmth wanders along the band, so it
+    // never reads as a painted gradient.
+    float core = exp(-pow(beta / 0.1, 2.0));
+    float warmth = core * (0.45 + 0.75 * fbm(ring * 1.7 + 5.3));
+    vec3 col = mix(vec3(0.4, 0.58, 1.0), vec3(1.0, 0.72, 0.42), clamp(warmth, 0.0, 1.0));
+
+    // Distant nebulae strung along the plane, too far to resolve: rose where
+    // hydrogen glows, teal where dust scatters starlight. Faint and patchy.
+    float plane = exp(-pow(beta / 0.3, 2.0));
+    float rose = smoothstep(0.5, 0.8, fbm(ring * 5.5 + vec2(beta * 7.0) + 3.7)) * plane;
+    float teal = smoothstep(0.52, 0.82, fbm(ring * 4.2 + vec2(beta * 6.0) + 17.1)) * plane;
+    vec3 glow = vec3(1.0, 0.3, 0.55) * rose * 0.5 + vec3(0.2, 0.7, 0.95) * teal * 0.36;
+
+    gl_FragColor = vec4(col * amount + glow, 1.0);
   }
 `;
 
@@ -126,7 +142,6 @@ const FRAG = /* glsl */ `
   uniform vec3 uNormal;   // normal of the galactic plane
   uniform vec3 uU;        // in-plane basis
   uniform vec3 uV;
-  uniform vec3 uColor;
   uniform float uIntensity;
   uniform sampler2D uBand;
 
@@ -145,14 +160,14 @@ const FRAG = /* glsl */ `
     float beta = asin(clamp(dot(d, uNormal), -1.0, 1.0));
     float phi = atan(dot(d, uV), dot(d, uU));
     vec2 uv = vec2(phi / (2.0 * PI) + 0.5, beta / PI + 0.5);
-    float amount = texture2D(uBand, uv).r;
+    vec3 band = texture2D(uBand, uv).rgb;
 
     // Ordered dither. The band is a very smooth, very dark gradient, which is
     // exactly the case 8-bit output quantises into visible steps. A fraction of
     // a code value of noise costs nothing and removes them entirely.
     float dither = (hash21(gl_FragCoord.xy) - 0.5) / 255.0;
 
-    gl_FragColor = vec4(uColor * amount * uIntensity + dither, 1.0);
+    gl_FragColor = vec4(band * uIntensity + dither, 1.0);
   }
 `;
 
@@ -176,7 +191,7 @@ function galacticBasis() {
 
 function bakeBand(renderer: WebGLRenderer): Texture {
   const target = new WebGLRenderTarget(MAP_W, MAP_H, {
-    format: RedFormat,
+    format: RGBAFormat,
     type: HalfFloatType,
     generateMipmaps: false,
     minFilter: LinearFilter,
@@ -233,10 +248,8 @@ export function GalacticBand({ intensity = 1.0 }: { intensity?: number }) {
         uU: { value: basis.u },
         uV: { value: basis.v },
         uBand: { value: band },
-        // Neutral, a touch cool. Never blue — an actually blue galaxy is the
-        // fastest way to look like stock sci-fi.
-        uColor: { value: new Vector3(0.6, 0.63, 0.7) },
-        uIntensity: { value: 0.16 * intensity },
+        // The colour is baked into the map: a gold core, blue edges.
+        uIntensity: { value: 0.19 * intensity },
         ...lensUniforms,
       },
       side: 1, // BackSide

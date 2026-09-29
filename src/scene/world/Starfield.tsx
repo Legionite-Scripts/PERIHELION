@@ -28,9 +28,9 @@ import { LENS_GLSL, lensUniforms } from "@/scene/gravity/lens";
  *     biggest tell of a generated starfield. Most stars are clustered into a
  *     band, tilted so it cuts the frame diagonally.
  *
- *  3. COLOUR IS BLACKBODY, THEN HEAVILY DESATURATED. Stars are physically
- *     coloured by temperature, but the eye only resolves tint in the bright
- *     ones. Faint stars stay near-white with a cool bias.
+ *  3. COLOUR IS BLACKBODY. Stars are physically coloured by temperature —
+ *     blue-white, gold, orange — and the bright ones show it most strongly.
+ *     Faint stars keep a lighter tint.
  *
  *  4. NOTHING TWINKLES. Twinkling is atmospheric scintillation. There is no
  *     atmosphere out here. Resisting it is both correct and restrained.
@@ -104,11 +104,12 @@ function buildGeometry() {
     const m = u > 0.994 ? 0.86 + rand() * 0.14 : Math.pow(u, 3.1);
     mags[i] = m;
 
-    // Temperature: biased cool, a long thin tail into the hot blues.
-    const kelvin = 2700 + Math.pow(rand(), 2.1) * 9300;
+    // Temperature: more cool stars than hot, but enough hot blues that the
+    // field reads as two-coloured, gold against blue-white.
+    const kelvin = 2700 + Math.pow(rand(), 1.4) * 9300;
     const [cr, cg, cb2] = kelvinToRGB(kelvin);
-    // Only bright stars are allowed visible tint; the rest stay cool white.
-    const sat = 0.2 + m * 0.4;
+    // Every star carries its temperature; the bright ones carry it fully.
+    const sat = 0.6 + m * 0.55;
     colors[i * 3] = 0.94 + (cr - 0.94) * sat;
     colors[i * 3 + 1] = 0.96 + (cg - 0.96) * sat;
     colors[i * 3 + 2] = 1.0 + (cb2 - 1.0) * sat;
