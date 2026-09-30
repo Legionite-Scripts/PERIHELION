@@ -58,6 +58,9 @@ body {
    the root element, so that is where it has to be hidden. */
 html {
   scrollbar-width: none;
+  /* One finger scrolls the flight; two fingers work the telescope
+     (ZoomControl), never the browser's own page zoom. */
+  touch-action: pan-y;
 }
 html::-webkit-scrollbar {
   display: none;
@@ -520,6 +523,60 @@ html[data-ready] .sound-entrance {
 .sound:focus-visible {
   outline: 1px solid var(--ink-line);
   outline-offset: 4px;
+}
+
+/* Telescope — a column on the right edge, mirroring the journey indicator. */
+.zoom-entrance {
+  position: fixed;
+  z-index: 5;
+  right: clamp(8px, 1.4vw, 22px);
+  top: 50%;
+  translate: 0 -50%;
+  opacity: 0;
+  transition: opacity var(--title-rise) var(--ease-out) calc(var(--title-delay) + 1.2s);
+}
+html[data-ready] .zoom-entrance {
+  opacity: 1;
+}
+.zoom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.zoom__button,
+.zoom__level {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-text);
+  font-weight: 500;
+  color: var(--ink-label);
+  cursor: pointer;
+}
+.zoom__button {
+  font-size: 18px;
+  line-height: 1;
+}
+.zoom__level {
+  font-size: var(--type-label);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+.zoom__button:hover:not(:disabled),
+.zoom__level:hover {
+  color: var(--ink-line);
+}
+.zoom__button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.zoom__button:focus-visible,
+.zoom__level:focus-visible {
+  outline: 1px solid var(--ink-line);
+  outline-offset: 2px;
 }
 
 /* Begin again — under the last line. */

@@ -8,6 +8,7 @@ import { trajectory } from "@/journey/trajectory";
 import { gravity, gravityInfluence } from "@/journey/gravity";
 import { cloud, cloudPresence } from "@/journey/environment";
 import { exposeDevHandles, removeDevHandles } from "@/dev/handles";
+import { zoom } from "@/journey/zoom";
 
 /**
  * Owns the Lenis instance and the tall spacer that gives the page its scroll
@@ -39,6 +40,7 @@ export function ScrollProvider({ children }: { children?: React.ReactNode }) {
       },
       trajectory,
       journey,
+      zoom,
       /** g at t (default: now), before the strength dial and the on/off switch. */
       gravityInfluence(t: number = journey.t) {
         return gravityInfluence(t);

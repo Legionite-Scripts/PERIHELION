@@ -1,4 +1,5 @@
 import { getLenis } from "@/lib/scroll/lenis";
+import { resetZoom } from "@/journey/zoom";
 import { snapJourney, useJourneyFlags } from "@/journey/store";
 
 /**
@@ -45,6 +46,7 @@ export function beginAgain(focusAfter?: HTMLElement | null) {
     useJourneyFlags.getState().setScrubbing(false);
     lenis?.scrollTo(0, { immediate: true, force: true });
     snapJourney(0);
+    resetZoom();
     window.setTimeout(() => {
       delete root.dataset.restarting;
       focusAfter?.focus({ preventScroll: true });

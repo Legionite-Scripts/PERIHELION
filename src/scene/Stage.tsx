@@ -7,6 +7,7 @@ import { Starfield } from "./world/Starfield";
 import { GalacticBand } from "./world/GalacticBand";
 import { Motes } from "./world/Motes";
 import { Planet } from "./world/planet/Planet";
+import { Aliens } from "./world/aliens/Aliens";
 import { GravityLens } from "./gravity/GravityLens";
 import { UiDriver } from "./UiDriver";
 import { MolecularCloud } from "./world/cloud/MolecularCloud";
@@ -82,6 +83,7 @@ export function Stage() {
         <Star />
         <FilmGrain />
         <Planet />
+        <Aliens />
         <Motes />
       </Canvas>
     </div>

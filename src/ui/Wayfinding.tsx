@@ -3,6 +3,7 @@
 import { registerOverlay } from "./overlay";
 import { beginAgain } from "./travel";
 import { SoundToggle } from "./SoundToggle";
+import { ZoomControl } from "./ZoomControl";
 
 /**
  * The three small pieces of interface around the film, all driven by
@@ -12,7 +13,8 @@ import { SoundToggle } from "./SoundToggle";
  *    as the flight begins, back only if someone lingers at the start;
  *  • the wordmark — the name kept quietly in the corner once the title has
  *    been left behind;
- *  • "Begin again" — with the last line, a fade to black and back to t = 0.
+ *  • "Begin again" — with the last line, a fade to black and back to t = 0;
+ *  • the telescope — zoom, on the right edge (ZoomControl).
  */
 export function Wayfinding() {
   return (
@@ -29,6 +31,8 @@ export function Wayfinding() {
       </p>
 
       <SoundToggle />
+
+      <ZoomControl />
 
       <div className="restart-slot">
         <button
